@@ -8,7 +8,7 @@ This package provides a basic implementation of the Apache Solr search engine wi
 
 ## Installation
 
-`composer install shopapps/scout-solr-engine`
+`composer require shopapps/scout-solr-engine`
 
 ## config
 
