@@ -58,7 +58,3 @@ The Solr Engine dispatches several events allowing you to hook into specific poi
 |Scout\Solr\Events\BeforeSelect|Contains the Solr `Solarium\QueryType\Select\Result\Result` object and `Model` object. This event allows you to create complex queries using the Solarium package.|
 
 
-## Example
-
-This repository provides an example laravel app showcasing the functionality of this package.   
-Please refer to the [README.md](example/README.md) of the example app for information on how to get it started.

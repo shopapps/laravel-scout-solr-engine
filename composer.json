@@ -47,7 +47,10 @@
         "laravel": {
             "providers": [
                 "Scout\\Solr\\ScoutSolrServiceProvider"
-            ]
+            ],
+            "aliases": {
+                "Solr": "Scout\\Solr\\Facades\\Solr"
+            }
         }
     },
     "minimum-stability": "dev",
