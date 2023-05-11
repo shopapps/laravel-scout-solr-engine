@@ -3,7 +3,7 @@
 namespace Scout\Solr\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Scout\Solr\Client;
+use Solarium\Client;
 
 class Solr extends Facade
 {
