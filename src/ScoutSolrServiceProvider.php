@@ -11,7 +11,7 @@ use Laravel\Scout\EngineManager;
 use Scout\Solr\Engines\SolrEngine;
 use Solarium\Core\Client\Adapter\Curl;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Solarium\Client;
+
 
 class ScoutSolrServiceProvider extends ServiceProvider
 {
@@ -39,11 +39,11 @@ class ScoutSolrServiceProvider extends ServiceProvider
             if (config('solr.endpoint.localhost.timeout')) {
                 $adapter->setTimeout(config('scout-solr.endpoints.default.timeout'));
             }
-            $eventDispatcher = new \Symfony\Component\EventDispatcher\EventDispatcher();
+            $config = config('scout-solr.endpoints.default');
             return new Client(
                 $adapter,
                 new EventDispatcher(),
-                config('scout-solr.endpoints.default')
+                $config
             );
         });
     }

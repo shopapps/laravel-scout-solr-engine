@@ -172,20 +172,19 @@ class SolrEngine extends Engine
 
     public function createIndex($name, array $options = [])
     {
-        $coreAdminQuery = $this->client->createCoreAdmin();
-
+        $coreAdminQuery = $this->client->setCore($name)->createCoreAdmin();
         $action = $coreAdminQuery->createCreate();
-        $action->setCore($name);
         $action->setConfigSet($this->config->get('scout-solr.create.config_set'));
-
+        $action->setCore($name);
+        $action->setInstanceDir($name);
         $coreAdminQuery->setAction($action);
-        return $this->client->coreAdmin($coreAdminQuery, $this->getEndpointFromConfig($name));
+        return $this->client->coreAdmin($coreAdminQuery);
     }
 
     public function deleteIndex($name)
     {
+        $this->client->getEndpoint()->setCore($name);
         $coreAdminQuery = $this->client->createCoreAdmin();
-
         $action = $coreAdminQuery->createUnload();
         $action->setCore($name);
         $action->setDeleteIndex($this->config->get('scout-solr.unload.delete_index'));

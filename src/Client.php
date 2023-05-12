@@ -9,15 +9,22 @@ use Solarium\Client as ClientBase;
 
 class Client extends ClientBase implements ClientInterface
 {
-    public function setCore(Model $model): self
+    public function setCore(Model|string $model): self
     {
-        /** @noinspection PhpPossiblePolymorphicInvocationInspection */
-        $searchableAs = $model->searchableAs();
-
-        if (is_array($searchableAs)) {
-            return $this->addEndpoint($searchableAs);
+        if(is_string($model))
+        {
+            $searchableAs = $model;
         }
-
+        else
+        {
+            /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+            $searchableAs = $model->searchableAs();
+            
+            if (is_array($searchableAs))
+            {
+                return $this->addEndpoint($searchableAs);
+            }
+        }
         $this->getEndpoint()->setCore($searchableAs);
         return $this;
     }
