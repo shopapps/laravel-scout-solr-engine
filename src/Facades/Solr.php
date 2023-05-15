@@ -3,11 +3,12 @@
 namespace Scout\Solr\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Solarium\Client;
+use Scout\Solr\ClientInterface;
+
 
 class Solr extends Facade
 {
     protected static function getFacadeAccessor()  {
-        return Client::class;
+        return ClientInterface::class;
     }
 }
