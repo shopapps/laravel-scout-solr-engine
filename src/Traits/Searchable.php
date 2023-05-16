@@ -7,7 +7,9 @@ set_time_limit(0);
 ini_set('max_execution_time',0);
 
 use Illuminate\Support\Arr;
+use Scout\Solr\Builder;
 use Laravel\Scout\Searchable as ScoutSearchable;
+use Scout\Solr\SolrCollection;
 
 trait Searchable
 {
@@ -29,8 +31,8 @@ trait Searchable
     /*
      * Array of attributes for search indexing to sort and filter on
      */
-    
-    
+
+
     /**
      * Generates Eloquent attributes to Solr fields mapping.
      *
@@ -65,6 +67,7 @@ trait Searchable
     public function customSearchData() {
         return [];
     }
+
 
     /**
      * Get the indexable data array for the model.
@@ -152,6 +155,57 @@ trait Searchable
         }
 
         return trim($trigrams);
+    }
+
+
+    /**
+     * Perform a search against the model's indexed data.
+     *
+     * @param  string  $query
+     * @param  \Closure  $callback
+     * @return \Scout\Solr\Builder
+     */
+    public static function search($query = '*:*', $callback = null)
+    {
+        return app(Builder::class, [
+            'model' => new static,
+            'query' => $query,
+            'callback' => $callback,
+            'softDelete'=> static::usesSoftDelete() && config('scout.soft_delete', false),
+        ]);
+    }
+
+    /**
+     * Give the model access to the solr query escaper for terms.
+     *
+     * @param string $query
+     * @return string
+     */
+    public static function escapeSolrQueryAsTerm(string $query): string
+    {
+        return app(EngineManager::class)->engine()->escapeQueryAsTerm($query);
+    }
+
+    /**
+     * Give the model access to the solr query escaper for phrases.
+     *
+     * @param string $query
+     * @return string
+     */
+    public static function escapeSolrQueryAsPhrase(string $query): string
+    {
+        return app(EngineManager::class)->engine()->escapeQueryAsPhrase($query);
+    }
+
+    /**
+     * Override the newCollection method on Model to use the SolrCollection class if no collection is set by the Model.
+     *
+     * @param array $models
+     * @return SolrCollection
+     */
+    public function newCollection(array $models = [])
+    {
+        return new SolrCollection($models);
     }
 
 }

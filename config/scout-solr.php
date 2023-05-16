@@ -74,4 +74,5 @@ return [
 //            'core' => env('SOLR_CORE', 'books'),
 //        ],
     ],
+    'meta_key' => env('SOLR_META_KEY', 'meta'),
 ];
