@@ -49,6 +49,12 @@ $select->setQuery('*:*');
 $result = $engine->select($select, $engine->getEndpointFromConfig($model->searchableAs())); // getEndpointFromConfig() is only necessary when your model does not use the default solr instance.
 ```
 
+## Usage
+```php
+$res = Product::search()
+  ->where('owner', 1021)
+  ->paginate();
+```
 ## Events
 The Solr Engine dispatches several events allowing you to hook into specific points in the engine.
 
