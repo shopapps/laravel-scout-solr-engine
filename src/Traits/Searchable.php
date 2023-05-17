@@ -120,6 +120,7 @@ trait Searchable
             $array[$this->primaryKey] = $this->getAttribute($this->primaryKey);
         }
 
+
         return $array;
     }
 
