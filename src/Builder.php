@@ -4,6 +4,7 @@ namespace Scout\Solr;
 
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Expression;
 use \Laravel\Scout\Builder as ScoutBuilder;
 use MongoDB\BSON\UTCDateTime;
@@ -544,4 +545,34 @@ class Builder extends ScoutBuilder
     }
 
 
+    /**
+     * Create a collection of models from plain arrays.
+     *
+     * @param  array  $items
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function hydrate(array $items)
+    {
+        $instance = $this->newModelInstance();
+
+        return $instance->newCollection(array_map(function ($item) use ($items, $instance) {
+            $model = $instance->newFromBuilder($item);
+
+            if (count($items) > 1) {
+                $model->preventsLazyLoading = Model::preventsLazyLoading();
+            }
+
+            return $model;
+        }, $items));
+    }
+    /**
+     * Create a new instance of the model being queried.
+     *
+     * @param  array  $attributes
+     * @return \Illuminate\Database\Eloquent\Model|static
+     */
+    public function newModelInstance($attributes = [])
+    {
+        return $this->model->newInstance($attributes);
+    }
 }

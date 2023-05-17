@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Scout\Solr\Engines;
 
+use App\Models\Tranquility\Parley;
 use Closure;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -26,6 +27,7 @@ use Solarium\Core\Client\Endpoint;
 use Solarium\Core\Query\Result\ResultInterface;
 use Solarium\QueryType\Select\Result\Document;
 use Solarium\QueryType\Select\Result\Result;
+
 
 /**
  * @mixin Client
@@ -410,23 +412,114 @@ class SolrEngine extends Engine
      * @param Model $model
      * @return Collection|void
      */
+//    public function map(Builder $builder, $results, $model)
+//    {
+//        dd(__METHOD__ . ' Line: ' . __LINE__, $results, $model);
+//        if ($results->getNumFound() === 0) {
+//            return $model->newCollection();
+//        }
+//
+//        $objectIds = collect($results->getDocuments())->map(static function (Document $document) {
+//            return $document->getFields()['id'];
+//        })->values()->all();
+//        $objectIdPositions = array_flip($objectIds);
+//
+//        return $model->getScoutModelsByIds($builder, $objectIds)
+//            ->filter(function ($model) use ($objectIds) {
+//                return in_array($model->getScoutKey(), $objectIds, false);
+//            })->sortBy(function ($model) use ($objectIdPositions) {
+//                return $objectIdPositions[$model->getScoutKey()];
+//            })->values();
+//    }
+
+    /**
+     * Map the given results to instances of the given model.
+     *
+     * @param BaseBuilder $builder
+     * @param \Solarium\QueryType\Select\Result\Result  $results
+     * @param \Illuminate\Database\Eloquent\Model  $model
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function map(Builder $builder, $results, $model)
     {
-        if ($results->getNumFound() === 0) {
-            return $model->newCollection();
+        if (count($results) === 0) {
+            return Collection::make();
         }
 
-        $objectIds = collect($results->getDocuments())->map(static function (Document $document) {
-            return $document->getFields()['id'];
-        })->values()->all();
-        $objectIdPositions = array_flip($objectIds);
 
-        return $model->getScoutModelsByIds($builder, $objectIds)
-            ->filter(function ($model) use ($objectIds) {
-                return in_array($model->getScoutKey(), $objectIds, false);
-            })->sortBy(function ($model) use ($objectIdPositions) {
-                return $objectIdPositions[$model->getScoutKey()];
-            })->values();
+
+
+        // TODO: Is there a better way to handle including faceting on a mapped result?
+        $facetSet = $results->getFacetSet();
+        if ($facetSet->count() > 0) {
+            $facets = $facetSet->getFacets();
+        } else {
+            $facets = [];
+        }
+
+        $spellcheck = $results->getSpellcheck();
+
+        if($this->config->get('scout-solr.select.use_raw_data')) {
+            $raw_data = collect($results->getDocuments())->transform(function ($item) {
+                $data = $item->getFields();
+                foreach ($data as $k => $v) {
+                    if(is_array($v) && count($v) === 1) {
+                        $data[$k] = $v[0];
+                    }
+                }
+                return $data;
+            });
+
+            $models = $builder->hydrate($raw_data->toArray());
+        } else {
+
+            $ids = collect($results)
+                ->pluck($model->getScoutKeyName())
+                ->values();
+
+            $models = $model->whereIn($model->getKeyName(), $ids)
+                            ->orderByRaw($this->orderQuery($model, $ids))
+                            ->get();
+        }
+        // TODO: (cont'd) Because attaching facets to every model feels kludgy
+        // solution is to implement a custom collection class that can hold the facets
+        $models->map(function ($item) use ($facets, $spellcheck) {
+            $item->facets     = $facets;
+            $item->spellcheck = $spellcheck;
+            return $item;
+        });
+
+        return $models;
+    }
+
+    /**
+     * Return the appropriate sorting(ranking) query for the SQL driver.
+     *
+     * @param \Illuminate\Database\Eloquent\Model  $model
+     * @param  \Illuminate\Database\Eloquent\Collection  $ids
+     *
+     * @return string The query that will be used for the ordering (ranking)
+     */
+    private function orderQuery($model, $ids)
+    {
+        $driver = $model->getConnection()->getDriverName();
+        $model_key = $model->getKeyName();
+        $query = '';
+
+        if ($driver == 'pgsql') {
+            foreach ($ids as $id) {
+                $query .= sprintf('%s=%s desc, ', $model_key, $id);
+            }
+            $query = rtrim($query, ', ');
+        } elseif ($driver == 'mysql') {
+            $id_list = $ids->implode(',');
+            $query = sprintf('FIELD(%s, %s)', $model_key, $id_list, 'ASC');
+        } else {
+            throw new \Exception('The SQL driver is not supported.');
+        }
+
+        return $query;
     }
 
     /**
