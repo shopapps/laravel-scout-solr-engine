@@ -31,6 +31,57 @@ Within the config file a core (index) is not provided. The engine will determine
 Alternatively, if a specific model is on a different Solr instance, another configuration can be provided for this model.
 It's important for the configuration key to match the `searchableAs()` of the model.
 
+When in Cloud mode i could not get this to work fully, so instead you could try:
+
+#### Step 1: Create a collection in solr via admin panel.
+```php
+http://127.0.0.1:8983/solr/#/~collections
+```
+choose add collection and configure it across your shards and replicas ( for demo mode use shards: 2 and replicas: 2)
+
+#### Step 2: Setup your schema in the Model
+make sure you model is 
+```php
+
+<?php
+
+namespace App\Models\User;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+
+use Scout\Solr\Traits\Searchable; // <--- THIS IS IMPORTANT
+
+
+class User extends Model
+{
+    use HasFactory;
+    use Searchable;
+```
+
+configure the searchable_fields property on your model, to use the schema you want to create in Solr.
+
+```php
+
+protected $searchable_fields = [
+        'id'            => ['type' => 'string', 'indexed' => true, 'stored' => true],
+        'role_id'       => ['type' => 'plong', 'indexed' => true, 'stored' => true],
+        'name'          => ['type' => 'string', 'indexed' => true, 'stored' => true],
+        'description'   => ['type' => 'text_general', 'indexed' => true, 'stored' => true],
+        'is_active'     => ['type' => 'boolean', 'indexed' => true, 'stored' => true],
+        'created_at'    => ['type' => 'pdate', 'indexed' => true, 'stored' => true],
+        'updated_at'    => ['type' => 'pdate', 'indexed' => true, 'stored' => true],
+    ];
+
+```
+#### Step 3: Build the schema
+```php
+$model = new \App\Models\User();
+$model->buildSolrSchema();
+```
+this will log any issues to the laravel log file
+
 ## [Solarium](https://github.com/solariumphp/solarium)
 
 This package uses [solarium/solarium](https://github.com/solariumphp/solarium) to handle requests to the solr instance.
@@ -50,8 +101,16 @@ $result = $engine->select($select, $engine->getEndpointFromConfig($model->search
 ```
 
 ## Usage
+not the best example but you get the idea
 ```php
 $res = Product::search()
+  ->where('owner', 1021)
+  ->paginate();
+```
+or...
+
+```php
+$res = Product::search('description: "red" AND name: "car"')
   ->where('owner', 1021)
   ->paginate();
 ```
