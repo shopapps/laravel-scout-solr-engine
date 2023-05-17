@@ -94,29 +94,21 @@ class Builder extends ScoutBuilder
 
     public function paginate($perPage = null, $pageName = 'page', $page = null)
     {
-        $paginator = parent::paginate($perPage, $pageName, $page);
-        // be paranoid and ensure we have the methods we need
-        if (
-            method_exists($paginator, 'getCollection') &&
-            array_key_exists(HasSolrResults::class, class_uses($paginator->getCollection()))
-        ) {
-            //dd(__METHOD__ . ' Line: ' . __LINE__, $paginator, $this->engine()->getLastSelectResult());
-            $paginator->getCollection()->setResults($this->engine()->getLastSelectResultDocs());
-        }
-        return $paginator;
+        return  parent::paginate($perPage, $pageName, $page);
     }
 
     public function get()
     {
-        $models = parent::get();
-        // be paranoid and ensure we have the methods we need
-        if (
-            method_exists($models, 'getCollection') &&
-            array_key_exists(HasSolrResults::class, class_uses($models->getCollection()))
-        ) {
-            $models->getCollection()->setResults($this->engine()->getLastSelectResult());
-        }
-        return $models;
+        return parent::get();
+//        $models = parent::get();
+//        // be paranoid and ensure we have the methods we need
+//        if (
+//            method_exists($models, 'getCollection') &&
+//            array_key_exists(HasSolrResults::class, class_uses($models->getCollection()))
+//        ) {
+//            $models->getCollection()->setResults($this->engine()->getLastSelectResult());
+//        }
+//        return $models;
     }
 
 

@@ -8,4 +8,8 @@ use Scout\Solr\Traits\HasSolrResults;
 class SolrCollection extends Collection
 {
     use HasSolrResults;
+
+    public function total() {
+        return $this->count();
+    }
 }

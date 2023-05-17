@@ -269,6 +269,7 @@ class SolrEngine extends Engine
         } elseif (array_key_exists('start', $options)) {
             $query->setStart($options['start']);
         }
+
         // add ordering to the search
         if ($builder->orders) {
             foreach ($builder->orders as $sort) {
@@ -278,11 +279,19 @@ class SolrEngine extends Engine
         // if a row limit is set, include that
         if ($builder->limit) {
             $query->setRows($builder->limit);
+        } elseif (array_key_exists('limit', $options)) {
+            $query->setRows($options['limit']);
+        } elseif (array_key_exists('perPage', $options)) {
+            $query->setRows($options['perPage']);
+        } else {
+            // no pagination but solr has 10 row limit by default
+            $query->setRows($this->config->get('scout-solr.select.limit'));
         }
 
         $this->events->dispatch(new BeforeSelect($query, $builder));
         $this->lastSelectResult = $this->client->select($query);
         $this->events->dispatch(new AfterSelect($this->lastSelectResult, $builder->model));
+        
         return $this->lastSelectResult;
     }
 
@@ -400,6 +409,9 @@ class SolrEngine extends Engine
      */
     public function mapIds($results)
     {
+//        $ids = collect($results)
+//            ->pluck($model->getScoutKeyName())
+//            ->values();
         // how do we get the pk without a model?
         return collect($results)
             ->pluck('id')
