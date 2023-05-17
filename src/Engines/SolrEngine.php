@@ -285,7 +285,7 @@ class SolrEngine extends Engine
             $query->setRows($options['perPage']);
         } else {
             // no pagination but solr has 10 row limit by default
-            $query->setRows($this->config->get('scout-solr.select.limit'));
+            $query->setRows( (int) $this->config->get('scout-solr.select.limit'));
         }
 
         $this->events->dispatch(new BeforeSelect($query, $builder));
