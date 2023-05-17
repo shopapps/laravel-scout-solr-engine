@@ -40,7 +40,7 @@ http://127.0.0.1:8983/solr/#/~collections
 choose add collection and configure it across your shards and replicas ( for demo mode use shards: 2 and replicas: 2)
 
 #### Step 2: Setup your schema in the Model
-make sure you model is 
+make sure your model is configured to use the correct Searchable trait
 ```php
 
 <?php
