@@ -37,32 +37,32 @@ class SolrEngine extends Engine
     public const NESTED_QUERY = '_nested_';
     public const SIMPLE_QUERY = '_simple_';
     public const NESTED_QUERY_SEPARATOR = '_';
-
+    
     private ClientInterface $client;
     private Repository $config;
     private Dispatcher $events;
-
+    
     /**
      * Access to the query helper.
      *
      * @var Helper
      */
     private $helper;
-
+    
     /**
      * Store the last result created allowing us to attach it to collection results.
      *
      * @var \Solarium\QueryType\Select\Result\Result
      */
     private $lastSelectResult;
-
+    
     /**
      * Make the key for the meta values in the searchable array configurable.
      *
      * @var string
      */
     private $metaKey = null;
-
+    
     public function __construct(ClientInterface $client, Repository $config, Dispatcher $events)
     {
         $this->client = $client;
@@ -71,7 +71,7 @@ class SolrEngine extends Engine
         $this->events = $events;
         $this->metaKey = $config->get('scout-solr.meta_key', 'meta');
     }
-
+    
     /**
      * Execute Update or Delete statement on the index.
      *
@@ -84,8 +84,8 @@ class SolrEngine extends Engine
         if($response->getStatus() != 0)
             throw new \Exception("Update command failed \n\n".json_encode($response->getData()));
     }
-
-
+    
+    
     /**
      * Execute Select command on the index.
      *
@@ -96,27 +96,27 @@ class SolrEngine extends Engine
      * @return \Solarium\QueryType\Select\Result\Result
      */
     private function executeQuery(&$query, &$builder, $offset = 0, $limit = null) {
-
-
+        
+        
         $conditions = (!empty($builder->query))? $builder->query : '';
         if(!is_array($conditions)) {
             $conditions = [$conditions];
         }
-
-
+        
+        
         foreach($builder->wheres as $key => &$value)
         {
             $conditions[] = "{$key}:\"{$value}\"";
         }
-
-
+        
+        
         $query->setQuery(implode(' ', $conditions));
-
+        
         if(!is_null($limit))
             $query->setStart($offset)->setRows($limit);
         return $this->client->select($query);
     }
-
+    
     /**
      * Actually perform the search, allows for options to be passed like pagination.
      *
@@ -127,15 +127,15 @@ class SolrEngine extends Engine
      */
     protected function performSearch($builder, array $options = [])
     {
-
+        
         if (!($builder instanceof Builder)) {
             throw new \Exception(
                 'Your model must use the Scout\\Solr\\Searchable trait in place of Laravel\\Scout\\Searchable'
             );
         }
-
+        
         $options = array_merge($builder->options, $options);
-
+        
         if ($builder->callback) {
             return call_user_func(
                 $builder->callback,
@@ -144,28 +144,28 @@ class SolrEngine extends Engine
                 $options
             );
         }
-
+        
         $this->client->setCore($builder->model);
-
-
+        
+        
         // build the query string for the q parameter
-
+        
         if (is_array($builder->query)) {
             $queryString = collect($builder->query)
                 ->map(function ($item, $key) {
-
+                    
                     if (is_array($item)) {
                         // there are multiple search queries for this term
                         $query = [];
                         foreach ($item as $query) {
                             $query[] = is_numeric($key) ? $query : "$key:$query";
                         }
-
+                        
                         return implode(' ', $query);
                     } else {
                         return is_numeric($key) ? $item : "$key:$item";
                     }
-
+                    
                 })
                 ->filter()
                 ->implode(' ');
@@ -178,38 +178,38 @@ class SolrEngine extends Engine
         } elseif ($builder->isDismax()) {
             $dismax = $query->getDisMax();
         }
-
+        
         if (isset($dismax) && empty($queryString)) {
             $dismax->setQueryAlternative('*:*');
         }
         $query->setQuery($queryString);
-
+        
         // get the filter query
         $filters = [];
         // loop through and merge any `OR` queries into one
-
+        
         foreach ($builder->wheres as $where) {
             if ($where['type'] === static::NESTED_QUERY) {
                 $queryString = $this->compileNestedQuery($where);
-
+                
             } elseif ($where['type'] === static::SIMPLE_QUERY) {
-
+                
                 $where_bindings = $where['bindings'];
                 if(!is_array($where_bindings))
                 {
                     $where_bindings = [$where_bindings];
                 }
                 $where_query = $where['query'];
-
-
+                
+                
                 if(!strstr($where_query, '%')) {
                     $where_query .= ':"%1%"';
                 }
                 if(empty($where_query)) {
-                   dd(__METHOD__ . ' Line: ' . __LINE__, $where);
+                    dd(__METHOD__ . ' Line: ' . __LINE__, $where);
                 }
                 $queryString = $this->helper->assemble($where_query, $where_bindings);
-
+                
             }
             if (!empty($filters) && $where['boolean'] === 'OR') {
                 $previous = array_pop($filters);
@@ -217,13 +217,13 @@ class SolrEngine extends Engine
             }
             $filters[] = $queryString;
         }
-
-
+        
+        
         collect($filters)->each(function (string $fq) use ($query) {
             $query->createFilterQuery(md5($fq))->setQuery($fq);
         });
-
-
+        
+        
         // build any faceting
         $facetSet = $query->getFacetSet();
         $facetSet->setOptions($builder->facetOptions);
@@ -251,51 +251,52 @@ class SolrEngine extends Engine
                     ->addFields(implode(',', $fields));
             }
         }
-
+        
         // set up spellchecking
         if ($builder->getUseSpellcheck()) {
             $spellcheck = $query->getSpellcheck();
             $spellcheck->setOptions($builder->getSpellcheckOptions());
         }
-
+        
         // Set the boost fields
         if (isset($dismax) && $builder->hasBoosts()) {
             $dismax->setQueryFields($builder->getBoosts());
         }
-
+        
         // allow for pagination here
         if ($builder->getStart() !== null) {
             $query->setStart($builder->getStart());
         } elseif (array_key_exists('start', $options)) {
             $query->setStart($options['start']);
         }
-
+        
         // add ordering to the search
         if ($builder->orders) {
             foreach ($builder->orders as $sort) {
                 $query->addSort($sort['column'], $sort['direction']);
             }
         }
+        
         // if a row limit is set, include that
         if ($builder->limit) {
-            $query->setRows($builder->limit);
+            $query->setRows( (int) $builder->limit);
         } elseif (array_key_exists('limit', $options)) {
-            $query->setRows($options['limit']);
+            $query->setRows( (int) $options['limit']);
         } elseif (array_key_exists('perPage', $options)) {
-            $query->setRows($options['perPage']);
+            $query->setRows( (int) $options['perPage']);
         } else {
             // no pagination but solr has 10 row limit by default
-            $query->setRows( (int) $this->config->get('scout-solr.select.limit'));
+            $query->setRows( (int) $this->config->get('scout-solr.select.limit')); // todo: this may crash solr if there are too many results
         }
-
+        
         $this->events->dispatch(new BeforeSelect($query, $builder));
         $this->lastSelectResult = $this->client->select($query);
         $this->events->dispatch(new AfterSelect($this->lastSelectResult, $builder->model));
         
         return $this->lastSelectResult;
     }
-
-
+    
+    
     /**
      * Takes a nested set of queries and turns it into a single query string (pre-compiled)
      *
@@ -328,42 +329,42 @@ class SolrEngine extends Engine
                 $first = false;
             }
         }
-
+        
         return $query;
     }
-
-
-
-
-
+    
+    
+    
+    
+    
     public function update($models): ResultInterface
     {
         $this->client->setCore($models->first());
-
+        
         $update = $this->client->createUpdate();
         $documents = $models->map(static function (Model $model) use ($update) {
-
+            
             if (empty($searchableData = $model->toSearchableArray())) {
                 /** @noinspection PhpInconsistentReturnPointsInspection */
                 return;
             }
-
+            
             return $update->createDocument(
                 array_merge($searchableData, $model->scoutMetadata())
             );
-
+            
         })->filter()->values()->all();
-
+        
         $update->addDocuments($documents);
         $update->addCommit();
-
+        
         return $this->client->update($update);
     }
-
+    
     public function delete($models): void
     {
         $this->client->setCore($models->first());
-
+        
         $delete = $this->client->createUpdate();
         $delete->addDeleteByIds(
             $models->map->getScoutKey()
@@ -371,17 +372,17 @@ class SolrEngine extends Engine
                 ->all()
         );
         $delete->addCommit();
-
+        
         $this->client->update($delete);
     }
-
-
-
+    
+    
+    
     public function search(Builder $builder){
         return $this->performSearch($builder);
     }
-
-
+    
+    
     /**
      * Perform the given search on the engine.
      *
@@ -393,14 +394,16 @@ class SolrEngine extends Engine
     public function paginate(Builder $builder, $perPage, $page){
         //decrement the page number as we're actually dealing with an offset, not page number
         $builder->take($perPage);
-
+        $pageName = request()->input('pageName', 'page');
+        
         return $this->performSearch($builder, [
             'start'   => ($page - 1) * $perPage,
             'page'    => $page,
             'perPage' => $perPage,
+            'pageName' => $pageName,
         ]);
     }
-
+    
     /**
      * Pluck and return the primary keys of the given results.
      *
@@ -417,7 +420,7 @@ class SolrEngine extends Engine
             ->pluck('id')
             ->values();
     }
-
+    
     /**
      * @param Builder $builder
      * @param Result $results
@@ -443,7 +446,7 @@ class SolrEngine extends Engine
 //                return $objectIdPositions[$model->getScoutKey()];
 //            })->values();
 //    }
-
+    
     /**
      * Map the given results to instances of the given model.
      *
@@ -458,10 +461,10 @@ class SolrEngine extends Engine
         if (count($results) === 0) {
             return Collection::make();
         }
-
-
-
-
+        
+        
+        
+        
         // TODO: Is there a better way to handle including faceting on a mapped result?
         $facetSet = $results->getFacetSet();
         if ($facetSet->count() > 0) {
@@ -469,9 +472,9 @@ class SolrEngine extends Engine
         } else {
             $facets = [];
         }
-
+        
         $spellcheck = $results->getSpellcheck();
-
+        
         if($this->config->get('scout-solr.select.use_raw_data')) {
             $raw_data = collect($results->getDocuments())->transform(function ($item) {
                 $data = $item->getFields();
@@ -482,17 +485,17 @@ class SolrEngine extends Engine
                 }
                 return $data;
             });
-
+            
             $models = $builder->hydrate($raw_data->toArray());
         } else {
-
+            
             $ids = collect($results)
                 ->pluck($model->getScoutKeyName())
                 ->values();
-
+            
             $models = $model->whereIn($model->getKeyName(), $ids)
-                            ->orderByRaw($this->orderQuery($model, $ids))
-                            ->get();
+                ->orderByRaw($this->orderQuery($model, $ids))
+                ->get();
         }
         // TODO: (cont'd) Because attaching facets to every model feels kludgy
         // solution is to implement a custom collection class that can hold the facets
@@ -501,10 +504,10 @@ class SolrEngine extends Engine
             $item->spellcheck = $spellcheck;
             return $item;
         });
-
+        
         return $models;
     }
-
+    
     /**
      * Return the appropriate sorting(ranking) query for the SQL driver.
      *
@@ -518,7 +521,7 @@ class SolrEngine extends Engine
         $driver = $model->getConnection()->getDriverName();
         $model_key = $model->getKeyName();
         $query = '';
-
+        
         if ($driver == 'pgsql') {
             foreach ($ids as $id) {
                 $query .= sprintf('%s=%s desc, ', $model_key, $id);
@@ -530,10 +533,10 @@ class SolrEngine extends Engine
         } else {
             throw new \Exception('The SQL driver is not supported.');
         }
-
+        
         return $query;
     }
-
+    
     /**
      * @param Builder $builder
      * @param Result $results
@@ -545,12 +548,12 @@ class SolrEngine extends Engine
         if ($results->getNumFound() === 0) {
             return LazyCollection::make($model->newCollection());
         }
-
+        
         $objectIds = collect($results->getDocuments())->map(static function (Document $document) {
             return $document->getFields()['id'];
         })->values()->all();
         $objectIdPositions = array_flip($objectIds);
-
+        
         return $model->getScoutModelsByIds($builder, $objectIds)
             ->cursor()
             ->filter(function ($model) use ($objectIds) {
@@ -559,7 +562,7 @@ class SolrEngine extends Engine
                 return $objectIdPositions[$model->getScoutKey()];
             })->values();
     }
-
+    
     /**
      * @param Result $results
      * @return int
@@ -568,16 +571,16 @@ class SolrEngine extends Engine
     {
         return $results->getNumFound();
     }
-
+    
     public function flush($model): void
     {
         $query = $this->client->setCore($model)->createUpdate();
         $query->addDeleteQuery('*:*');
         $query->addCommit();
-
+        
         $this->client->update($query);
     }
-
+    
     public function createIndex($name, array $options = [])
     {
         $coreAdminQuery = $this->client->setCore($name)->createCoreAdmin();
@@ -588,21 +591,21 @@ class SolrEngine extends Engine
         $coreAdminQuery->setAction($action);
         return $this->client->coreAdmin($coreAdminQuery);
     }
-
+    
     public function deleteIndex($name)
     {
         $coreAdminQuery = $this->client->setCore($name)->createCoreAdmin();
-
+        
         $action = $coreAdminQuery->createUnload();
         $action->setCore($name);
         $action->setDeleteIndex($this->config->get('scout-solr.unload.delete_index'));
         $action->setDeleteDataDir($this->config->get('scout-solr.unload.delete_data_dir'));
         $action->setDeleteInstanceDir($this->config->get('scout-solr.unload.delete_instance_dir'));
-
+        
         $coreAdminQuery->setAction($action);
         return $this->client->coreAdmin($coreAdminQuery);
     }
-
+    
     public function getLastSelectResult(): ?\Solarium\QueryType\Select\Result\Result
     {
         return $this->lastSelectResult;
@@ -611,31 +614,31 @@ class SolrEngine extends Engine
         $res = $this->getLastSelectResult();
         return $res->getDocuments();
     }
-
+    
     protected function filters(Builder $builder): string
     {
         $filters = collect($builder->wheres)->map(function ($value, $key) {
             return sprintf('%s:%s', $key, $value);
         });
-
+        
         foreach ($builder->whereIns as $key => $values) {
             $filters->push(sprintf('%s:(%s)', $key, collect($values)->map(function ($value) {
                 return $value;
             })->values()->implode(' OR ')));
         }
-
+        
         return $filters->values()->implode(' AND ');
     }
-
+    
     public function getEndpointFromConfig(string $name): ?Endpoint
     {
         if ($this->config->get('scout-solr.endpoints.' . $name) === null) {
             return null;
         }
-
+        
         return new Endpoint($this->config->get('scout-solr.endpoints.' . $name));
     }
-
+    
     /**
      * Dynamically call the Solr client instance.
      *
@@ -647,5 +650,5 @@ class SolrEngine extends Engine
     {
         return $this->client->$method(...$parameters);
     }
-
+    
 }
