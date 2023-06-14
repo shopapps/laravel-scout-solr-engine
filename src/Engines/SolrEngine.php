@@ -277,6 +277,18 @@ class SolrEngine extends Engine
             }
         }
         
+        if (array_key_exists('fields', $options)) {
+            if(!array_key_exists('id', $options['fields'])) {
+                $options['fields'][] = 'id';
+            }
+            $query->setFields($options['fields']);
+        } else if (!empty($builder->columns)) {
+            if(!array_key_exists('id', $builder->columns)) {
+                $builder->columns[] = 'id';
+            }
+            $query->setFields($builder->columns);
+        }
+        
         // if a row limit is set, include that
         if ($builder->limit) {
             $query->setRows( (int) $builder->limit);

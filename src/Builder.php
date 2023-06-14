@@ -567,4 +567,17 @@ class Builder extends ScoutBuilder
     {
         return $this->model->newInstance($attributes);
     }
+    
+    public function select(...$columns) {
+        if(count($columns) == 1 && is_array($columns[0])) {
+            $columns = $columns[0];
+        }
+        $this->columns = $columns;
+        
+        return $this;
+    }
+    
+    public function setFields(...$fields) {
+        return $this->select($fields);
+    }
 }
