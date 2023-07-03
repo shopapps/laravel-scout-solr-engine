@@ -113,7 +113,15 @@ trait Searchable
                     $options = $field; // future use
                     $field = $k;
                 }
-                $val = $this->getAttribute($field);
+                if(method_exists($this, $field))
+                {
+                    // is a relationship
+                    $val = $this->$field->toJson();
+                }
+                else
+                {
+                    $val = $this->getAttribute($field);
+                }
                 /* check if $val is carbon or date object */
                 if(is_object($val) && method_exists($val, 'toDateTimeString')) {
                     $val = $val->toDateTimeString();
