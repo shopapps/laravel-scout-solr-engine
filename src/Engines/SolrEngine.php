@@ -218,6 +218,8 @@ class SolrEngine extends Engine
             $filters[] = $queryString;
         }
         
+        // remove any empty values in $filters
+        $filters = array_filter($filters);
         
         collect($filters)->each(function (string $fq) use ($query) {
             $query->createFilterQuery(md5($fq))->setQuery($fq);
