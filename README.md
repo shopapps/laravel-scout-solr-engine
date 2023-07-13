@@ -148,6 +148,8 @@ The Solr Engine dispatches several events allowing you to hook into specific poi
 
 This is a complete hash-up of lots of other great developers work.  I needed to get something working for a project but most packages were out of date for laravel 10, scout 10 and solr 9
 If you spot your code in here, please accept my appology and let me know and i'll add you to the list:
+
+* https://github.com/Klaasie/laravel-scout-solr-engine
 * https://github.com/pxslip/laravel-scout-solr
 * https://github.com/grey-dev-0/laravel-scout-solr
 * https://gitlab.bertbalcaen.info/rekall/laravel-scout-solr
