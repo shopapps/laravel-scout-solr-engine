@@ -220,7 +220,9 @@ class SolrEngine extends Engine
         
         // remove any empty values in $filters
         $filters = array_filter($filters);
-        
+        // reindex the array
+        $filters = array_values($filters);
+//dd(__METHOD__ . ' Line: ' . __LINE__, $filters);
         collect($filters)->each(function (string $fq) use ($query) {
             $query->createFilterQuery(md5($fq))->setQuery($fq);
         });

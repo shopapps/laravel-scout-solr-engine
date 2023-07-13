@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Expression;
+use Illuminate\Support\Arr;
 use \Laravel\Scout\Builder as ScoutBuilder;
 use MongoDB\BSON\UTCDateTime;
 use Scout\Solr\Engines\SolrEngine;
@@ -19,84 +20,84 @@ class Builder extends ScoutBuilder
      * @var string[]
      */
     public $facetOptions = [];
-
+    
     /**
      * Array of facet fields to facet on.
      *
      * @var string[]
      */
     public $facetFields = [];
-
+    
     /**
      * Array of facet queries mapped by field.
      *
      * @var array|string[string]
      */
     public $facetQueries = [];
-
+    
     /**
      * Array of array of fields to do a facet pivot.
      *
      * @var [][]
      */
     public $facetPivots = [];
-
+    
     /**
      * Array of field => boost values to add to the query.
      *
      * @var array
      */
     private $boostFields = [];
-
+    
     /**
      * Gets set when either the useDismax() method is called, or if one of the boosting methods is called.
      *
      * @var bool
      */
     private $useDismax = false;
-
+    
     /**
      * Gets set when either the useEDismax() method is called, or if the query contains a wildcard.
      *
      * @var bool
      */
     private $useExtendedDismax = false;
-
+    
     /**
      * The offset to start the search at.
      *
      * @var int
      */
     private $start = null;
-
+    
     /**
      * Determine whether we want the spellcheck component to run
      *
      * @var boolean
      */
     private $useSpellcheck = false;
-
+    
     /**
      * If the search returns a collation for spellcheck, automatically re-run it to extend the results
      *
      * @var boolean
      */
     private $doAutoSpellcheckSearch = false;
-
+    
     /**
      * Options for the spellcheck component
      *
      * @var array
      */
     private $spellcheckOptions = [];
-
+    
     public $orders = [];
-
+    
     public function paginate($perPage = null, $pageName = 'page', $page = null)
     {
         return  parent::paginate($perPage, $pageName, $page);
     }
-
+    
     public function get()
     {
         return parent::get();
@@ -110,8 +111,8 @@ class Builder extends ScoutBuilder
 //        }
 //        return $models;
     }
-
-
+    
+    
     /**
      * Add a filter query separated by OR. Uses the solarium placeholder syntax
      *
@@ -126,7 +127,7 @@ class Builder extends ScoutBuilder
     {
         return $this->where($query, $bindings, 'OR');
     }
-
+    
     /**
      * Add a filter query, uses the solarium placeholder syntax
      *
@@ -153,15 +154,59 @@ class Builder extends ScoutBuilder
                 $bindings = [$bindings];
             }
             $this->wheres[] = [
-                'type' => SolrEngine::SIMPLE_QUERY,
-                'query' => $query,
+                'type'     => SolrEngine::SIMPLE_QUERY,
+                'query'    => $query,
                 'bindings' => $bindings,
-                'boolean' => $boolean,
+                'boolean'  => $boolean,
             ];
         }
-
+        
         return $this;
     }
+    
+    /**
+     * Add a "where null" clause to the query.
+     *
+     * @param  string|array|\Illuminate\Contracts\Database\Query\Expression  $columns
+     * @param  string  $boolean
+     * @param  bool  $not
+     * @return $this
+     */
+    public function whereNull($fields, $boolean = 'and', $not = false)
+    {
+        foreach (Arr::wrap($fields) as $field) {
+            if($not){
+                // where not null
+                $query = "{$field}:%1%";
+            } else {
+                // where null (notice the - )
+                $query = "-{$field}:%1%";
+            }
+            $bindings = "[* TO *]";
+            
+            $this->wheres[] = [
+                'type'     => SolrEngine::SIMPLE_QUERY,
+                'query'    => $query,
+                'bindings' => $bindings,
+                'boolean'  => $boolean,
+            ];
+        }
+        
+        return $this;
+    }
+    public function whereNotNull($columns, $boolean = 'and')
+    {
+        return $this->whereNull($columns, $boolean, true);
+    }
+    public function orWhereNotNull($column)
+    {
+        return $this->whereNotNull($column, 'or');
+    }
+    public function orWhereNull($column)
+    {
+        return $this->whereNull($column, 'or');
+    }
+    
     /**
      * Add the ability to easily set a range query.
      *
@@ -181,31 +226,31 @@ class Builder extends ScoutBuilder
         string $boolean = 'AND'
     ) {
         $query = "{$field}:[%{$mode}1% TO %{$mode}2%]";
-
+        
         return $this->where($query, [$low, $high], $boolean);
     }
-
+    
     public function whereBetween(
         string $field,
         iterable $values
     ) {
         $query = "{$field}:[\"%L1%\" TO \"%L2%\"]";
-
+        
         /*
          * try to figure out if the values are dates
          * if they are straight int's no need to format them
          */
-
+        
         if(!is_int($values[0]))
         {
-
+            
             if ($values instanceof CarbonPeriod)
             {
                 $values = [$values->start, $values->end];
             }
             else
             {
-
+                
                 $from = $values[0];
                 $to = $values[1];
                 if ($this->isYMDFormat($from))
@@ -232,7 +277,7 @@ class Builder extends ScoutBuilder
         }
         return $this->where($query, $values);
     }
-
+    
     public function isYMDFormat($date)
     {
         if (preg_match("/^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$/", $date))
@@ -244,15 +289,15 @@ class Builder extends ScoutBuilder
             return false;
         }
     }
-
+    
     public function asCarbon($value)
     {
-
+        
         if (!$value)
         {
             return $value;
         }
-
+        
         // do check and convert to Carbon
         if ($value instanceof Carbon)
         {
@@ -262,7 +307,7 @@ class Builder extends ScoutBuilder
         {
             $datetime = $value->toDateTime();
             $string_date = $datetime->format("Y-m-d H:i:s");
-
+            
             return Carbon::parse($string_date);
         }
         else if (is_string($value) && !empty($value))
@@ -273,14 +318,14 @@ class Builder extends ScoutBuilder
         {
             return null;
         }
-
+        
         /*
          * not able to convert to Carbon (probably null or empty)
          */
-
+        
         return $value;
     }
-
+    
     /**
      * Add a facet to this search on the given field.
      *
@@ -291,10 +336,10 @@ class Builder extends ScoutBuilder
     public function facetField(string $field)
     {
         $this->facetFields[] = $field;
-
+        
         return $this;
     }
-
+    
     /**
      * Add a facet query.
      *
@@ -311,10 +356,10 @@ class Builder extends ScoutBuilder
         } else {
             $this->facetQueries[$field] = [$query];
         }
-
+        
         return $this;
     }
-
+    
     /**
      * Add a facet pivot query.
      *
@@ -325,10 +370,10 @@ class Builder extends ScoutBuilder
     public function facetPivot(array $fields)
     {
         $this->facetPivots[] = $fields;
-
+        
         return $this;
     }
-
+    
     /**
      * Add an option to apply on the Solarium FacetSet
      * See https://github.com/solariumphp/solarium/blob/master/src/Component/FacetSet.php for possible options.
@@ -341,10 +386,10 @@ class Builder extends ScoutBuilder
     public function setFacetOption($option, $value)
     {
         $this->facetOptions[$option] = $value;
-
+        
         return $this;
     }
-
+    
     /**
      * Get a new builder that can be used to build a nested query.
      *
@@ -354,7 +399,7 @@ class Builder extends ScoutBuilder
     {
         return new self($this->model, $this->query, null);
     }
-
+    
     /**
      * Add a boost to the query.
      *
@@ -366,10 +411,10 @@ class Builder extends ScoutBuilder
     {
         $this->selectQueryParser();
         $this->boostFields[$field] = $boost;
-
+        
         return $this;
     }
-
+    
     /**
      * Set `$useDismax` or `$useExtendedDismax` to `true` based on the query.
      */
@@ -384,7 +429,7 @@ class Builder extends ScoutBuilder
         }
         return $this;
     }
-
+    
     /**
      * @return array
      */
@@ -392,7 +437,7 @@ class Builder extends ScoutBuilder
     {
         return $this->getBoostsCollection()->toArray();
     }
-
+    
     /**
      * @return string
      */
@@ -400,7 +445,7 @@ class Builder extends ScoutBuilder
     {
         return $this->getBoostsCollection()->implode(' ');
     }
-
+    
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -410,12 +455,12 @@ class Builder extends ScoutBuilder
             return "$field^$boost";
         });
     }
-
+    
     public function hasBoosts(): bool
     {
         return !empty($this->boostFields);
     }
-
+    
     /**
      * Inform the builder that we want to use dismax when building the query.
      *
@@ -424,10 +469,10 @@ class Builder extends ScoutBuilder
     public function useDismax()
     {
         $this->useDismax = true;
-
+        
         return $this;
     }
-
+    
     /**
      * Inform the builder that we want to use the *extended* dismax parser when building the query.
      *
@@ -436,10 +481,10 @@ class Builder extends ScoutBuilder
     public function useEDismax()
     {
         $this->useExtendedDismax = true;
-
+        
         return $this;
     }
-
+    
     /**
      * @return bool
      */
@@ -447,7 +492,7 @@ class Builder extends ScoutBuilder
     {
         return $this->useExtendedDismax;
     }
-
+    
     /**
      * @return bool
      */
@@ -455,7 +500,7 @@ class Builder extends ScoutBuilder
     {
         return $this->useDismax;
     }
-
+    
     /**
      * Set the start offset for this query.
      *
@@ -465,15 +510,15 @@ class Builder extends ScoutBuilder
     public function setStart(int $value): self
     {
         $this->start = $value;
-
+        
         return $this;
     }
-
+    
     public function getStart(): ?int
     {
         return $this->start;
     }
-
+    
     /**
      * Enable the spellcheck component
      *
@@ -486,7 +531,7 @@ class Builder extends ScoutBuilder
         $this->spellcheckOptions = $options;
         return $this;
     }
-
+    
     /**
      * Determine whether this search wants the spellcheck component
      *
@@ -496,12 +541,12 @@ class Builder extends ScoutBuilder
     {
         return $this->useSpellcheck;
     }
-
+    
     public function getSpellcheckOptions(): array
     {
         return $this->spellcheckOptions;
     }
-
+    
     /**
      * If enabled will automatically re-search the index for any collated searches returned by the spellcheck component
      *
@@ -514,7 +559,7 @@ class Builder extends ScoutBuilder
         $this->spellcheckOptions['collate'] = true;
         return $this;
     }
-
+    
     /**
      * Define if we want to perform an auto re-search
      *
@@ -524,7 +569,7 @@ class Builder extends ScoutBuilder
     {
         return $this->doAutoSpellcheckSearch;
     }
-
+    
     /**
      * Add a descending "order by" clause to the query.
      *
@@ -535,8 +580,8 @@ class Builder extends ScoutBuilder
     {
         return $this->orderBy($column, 'desc');
     }
-
-
+    
+    
     /**
      * Create a collection of models from plain arrays.
      *
@@ -546,14 +591,14 @@ class Builder extends ScoutBuilder
     public function hydrate(array $items)
     {
         $instance = $this->newModelInstance();
-
+        
         return $instance->newCollection(array_map(function ($item) use ($items, $instance) {
             $model = $instance->newFromBuilder($item);
-
+            
             if (count($items) > 1) {
                 $model->preventsLazyLoading = Model::preventsLazyLoading();
             }
-
+            
             return $model;
         }, $items));
     }

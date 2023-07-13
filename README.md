@@ -24,6 +24,27 @@ However, if a default config set is set up in the Solr instance this becomes pos
 The `scout:index` command will only work if the Solr instance is properly configured and the config files has the corresponding name for the config set folder.
 For more information, see [https://solr.apache.org/guide/8_9/config-sets.html#config-sets](https://solr.apache.org/guide/8_9/config-sets.html#config-sets)
 
+To get the `_default` configset onto your server try the following (adjusting the command to match your solr version/location:
+
+```bash
+sudo cp -r /opt/solr-9.2.1/server/solr/configsets /var/solr/data
+sudo chown -R solr:solr /var/solr/data/configsets
+```
+
+then checking that folder you should see something like:
+
+```bash
+sudo ls -lah /var/solr/data/configsets/
+
+total 16K
+drwxr-xr-x  4 solr solr 4.0K Jul 13 07:03 .
+drwxr-x--- 13 solr solr 4.0K Jul 13 07:03 ..
+drwxr-xr-x  3 solr solr 4.0K Jul 13 07:03 _default
+drwxr-xr-x  3 solr solr 4.0K Jul 13 07:03 sample_techproducts_configs
+
+```
+most likely you can safely delete the `sample_techproducts_configs` folder from there unless you are using it :-)
+
 ### Cores (indexes)
 
 Within the config file a core (index) is not provided. The engine will determine which core to connect to using the `searchableAs()` method on the model.
