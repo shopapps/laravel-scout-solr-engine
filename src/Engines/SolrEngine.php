@@ -206,7 +206,7 @@ class SolrEngine extends Engine
                     $where_query .= ':"%1%"';
                 }
                 if(empty($where_query)) {
-                    dd(__METHOD__ . ' Line: ' . __LINE__, $where);
+                    dd(__METHOD__ . ' Line: ' . __LINE__, 'EMPTY WHERE QUERY:', $where);
                 }
                 $queryString = $this->helper->assemble($where_query, $where_bindings);
                 
@@ -222,7 +222,7 @@ class SolrEngine extends Engine
         $filters = array_filter($filters);
         // reindex the array
         $filters = array_values($filters);
-//dd(__METHOD__ . ' Line: ' . __LINE__, $filters);
+
         collect($filters)->each(function (string $fq) use ($query) {
             $query->createFilterQuery(md5($fq))->setQuery($fq);
         });
@@ -445,7 +445,6 @@ class SolrEngine extends Engine
      */
 //    public function map(Builder $builder, $results, $model)
 //    {
-//        dd(__METHOD__ . ' Line: ' . __LINE__, $results, $model);
 //        if ($results->getNumFound() === 0) {
 //            return $model->newCollection();
 //        }
